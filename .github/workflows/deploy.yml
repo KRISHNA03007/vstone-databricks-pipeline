@@ -11,14 +11,11 @@ on:
       - 'main'
 
 jobs:
-  validate-deploy-and-test:
+  # -------------------------------------------------------------
+  # Step 1: Run Tests First (Fastest fail-early step)
+  # -------------------------------------------------------------
+  run-tests:
     runs-on: ubuntu-latest
-    env:
-      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-      DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,30 +24,61 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip' # Speeds up runs by caching downloaded wheels
 
-      - name: Install Python Dependencies
+      - name: Install Test Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pytest databricks-sql-connector
 
+      - name: Run Pytest Suite
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+        run: pytest tests/ -v
+
+  # -------------------------------------------------------------
+  # Step 2: Validate Bundle (Runs strictly after tests pass)
+  # -------------------------------------------------------------
+  validate-bundle:
+    needs: run-tests
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
-      # Validation runs on both PRs and merges
       - name: Validate Databricks Bundle
-        run: databricks bundle validate
+        run: databricks bundle validate -t dev
 
-      # Deploy bundle upon merge to dev/main
+  # -------------------------------------------------------------
+  # Step 3: Deploy & Execute Ingestion (Only on merge/push to dev/main)
+  # -------------------------------------------------------------
+  deploy-and-run:
+    needs: validate-bundle
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
       - name: Deploy Databricks Bundle
-        if: github.event_name == 'push'
         run: databricks bundle deploy -t dev
 
-      # Execute the ingestion pipeline
       - name: Run Ingestion Pipeline Job
-        if: github.event_name == 'push'
         run: databricks bundle run bronze_ingestion_chunk1 -t dev
-
-      # Automatically finds and runs ALL test_*.py files inside the tests/ directory
-      - name: Run All Tests in tests folder
-        if: github.event_name == 'push'
-        run: pytest tests/ -v
