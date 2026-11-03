@@ -29,15 +29,22 @@ jobs:
       - name: Install Test Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest databricks-sql-connector
+          # pyspark is required by the local unit tests (test_*_unit.py) which
+          # exercise notebook functions against small in-memory DataFrames
+          # using assertDataFrameEqual/assertSchemaEqual. databricks-sql-connector
+          # is required by the integration tests that hit a live SQL warehouse.
+          pip install pytest pyspark databricks-sql-connector
 
-      - name: Run Pytest Suite
+      - name: Run Unit Tests (offline, no Databricks secrets required)
+        run: pytest tests/ -v -k "unit"
+
+      - name: Run Integration Tests (requires live Databricks SQL warehouse)
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
           DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
           DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
-        run: pytest tests/ -v
+        run: pytest tests/ -v -k "not unit"
 
   # -------------------------------------------------------------
   # Step 2: Validate Bundle (Runs strictly after tests pass)
