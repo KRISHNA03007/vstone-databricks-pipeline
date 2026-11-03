@@ -1,0 +1,13 @@
+resources:
+  jobs:
+    bronze_ingestion_chunk1:
+      name: "Day 2 - Bronze Layer Ingestion (Chunk 1)"
+      tasks:
+        - task_key: "copy_into_bronze_chunk1"
+          notebook_task:
+            notebook_path: src/notebooks/bronze/01_chunk1_initial.ipynb
+            base_parameters:
+              source_path: "/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz"
+              catalog: "vstone"
+              schema: "bronze"
+              table_name: "transactions"

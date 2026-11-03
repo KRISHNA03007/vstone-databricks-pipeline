@@ -1,0 +1,10 @@
+bundle:
+  name: vstone-databricks-pipeline
+
+include:
+  - src/jobs/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
