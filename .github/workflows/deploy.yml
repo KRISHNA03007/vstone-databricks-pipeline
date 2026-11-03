@@ -24,16 +24,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # Speeds up runs by caching downloaded wheels
+          cache: 'pip' # Speeds up runs by caching downloaded wheels, keyed off requirements.txt below
+          cache-dependency-path: 'requirements.txt'
 
       - name: Install Test Dependencies
         run: |
           python -m pip install --upgrade pip
-          # pyspark is required by the local unit tests (test_*_unit.py) which
-          # exercise notebook functions against small in-memory DataFrames
-          # using assertDataFrameEqual/assertSchemaEqual. databricks-sql-connector
-          # is required by the integration tests that hit a live SQL warehouse.
-          pip install pytest pyspark databricks-sql-connector
+          # pytest: test runner. pyspark: required by the local unit tests
+          # (test_*_unit.py) which exercise notebook functions against small
+          # in-memory DataFrames using assertDataFrameEqual/assertSchemaEqual.
+          # databricks-sql-connector: required by the integration tests that
+          # hit a live SQL warehouse. See requirements.txt for pinned versions.
+          pip install -r requirements.txt
 
       - name: Run Unit Tests (offline, no Databricks secrets required)
         run: pytest tests/ -v -k "unit"
