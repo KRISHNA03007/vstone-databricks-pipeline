@@ -1,0 +1,28 @@
+name: Deploy Databricks Asset Bundles
+
+on:
+  push:
+    branches: 
+      - 'feature/*'
+      - 'dev'
+      - 'main'
+
+jobs:
+  deploy-dabs:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate Databricks Bundle
+        run: databricks bundle validate
+
+      - name: Deploy Databricks Bundle (Dev Target)
+        run: databricks bundle deploy -t dev
