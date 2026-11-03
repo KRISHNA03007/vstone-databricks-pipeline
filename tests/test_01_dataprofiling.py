@@ -1,5 +1,7 @@
 import pytest
 
+VOLUME_PATH = "/Volumes/vstone/landing/raw_data/chunks"
+
 EXPECTED_FILES = [
     "chunk1_initial.csv.gz",
     "chunk2_incremental.csv.gz",
@@ -7,7 +9,8 @@ EXPECTED_FILES = [
     "chunk4.xml.gz"
 ]
 
-EXPECTED_COLUMNS = [
+# Baseline core contract columns that must always exist
+CORE_CONTRACT_COLUMNS = {
     "Transaction unique identifier",
     "Price",
     "Date of Transfer",
@@ -19,34 +22,103 @@ EXPECTED_COLUMNS = [
     "County",
     "PPDCategory Type",
     "Record Status - monthly file only"
-]
+}
 
-# 1. Check if all 4 volume files exist
+
 def test_all_volume_files_exist(cursor):
-    cursor.execute("LIST '/Volumes/vstone/landing/raw_data/chunks'")
+    """Verify that all 4 raw chunk files exist in the landing Volume."""
+    cursor.execute(f"LIST '{VOLUME_PATH}'")
     rows = cursor.fetchall()
     
-    # Extract file paths/names returned by Databricks LIST command
     volume_files = " ".join([str(row[0]) for row in rows])
     
     for filename in EXPECTED_FILES:
-        assert filename in volume_files, f"Missing file in volume: {filename}"
+        assert filename in volume_files, f"Missing file in volume {VOLUME_PATH}: {filename}"
 
 
-# 2. Check schema and column presence in the initial raw CSV file
-def test_chunk1_columns(cursor):
-    cursor.execute("""
+def test_chunk1_dynamic_schema_contract(cursor):
+    """
+    Dynamically inspect columns in chunk1_initial.csv.gz via read_files metadata.
+    Handles schema evolution by verifying core contract columns exist as a subset,
+    allowing additive evolution without breaking on column count changes.
+    """
+    cursor.execute(f"""
         SELECT * FROM read_files(
-            '/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz',
+            '{VOLUME_PATH}/chunk1_initial.csv.gz',
             format => 'csv',
             header => true
-        ) LIMIT 1
+        ) LIMIT 0
     """)
     
-    # Read actual column names from query metadata
-    actual_columns = [col[0] for col in cursor.description]
+    # Dynamically extract column names directly from source file metadata
+    actual_columns = {col[0] for col in cursor.description}
     
-    assert len(actual_columns) == 11, f"Expected 11 columns, got {len(actual_columns)}"
-    
-    for col_name in EXPECTED_COLUMNS:
-        assert col_name in actual_columns, f"Missing column: {col_name}"
+    missing_core = CORE_CONTRACT_COLUMNS - actual_columns
+    assert not missing_core, (
+        f"Schema contract violation in chunk1: missing required columns: {missing_core}"
+    )
+
+
+def test_schema_evolution_compatibility_across_chunks(cursor):
+    """
+    Dynamically compares schemas between initial and incremental chunks to ensure
+    schema evolution is backward-compatible and additive without dropping core columns.
+    """
+    # 1. Dynamically read Chunk 1 columns
+    cursor.execute(f"""
+        SELECT * FROM read_files(
+            '{VOLUME_PATH}/chunk1_initial.csv.gz',
+            format => 'csv',
+            header => true
+        ) LIMIT 0
+    """)
+    chunk1_cols = {col[0] for col in cursor.description}
+
+    # 2. Dynamically read Chunk 2 columns
+    cursor.execute(f"""
+        SELECT * FROM read_files(
+            '{VOLUME_PATH}/chunk2_incremental.csv.gz',
+            format => 'csv',
+            header => true
+        ) LIMIT 0
+    """)
+    chunk2_cols = {col[0] for col in cursor.description}
+
+    # Verify primary key is preserved across evolved chunks
+    assert "Transaction unique identifier" in chunk1_cols, "Chunk 1 missing primary key"
+    assert "Transaction unique identifier" in chunk2_cols, "Chunk 2 missing primary key"
+
+    # Verify no core business columns were dropped during evolution
+    dropped_core = CORE_CONTRACT_COLUMNS - chunk2_cols
+    assert not dropped_core, f"Incremental Chunk 2 dropped core contract columns: {dropped_core}"
+
+
+def test_chunk1_not_empty(cursor):
+    """Verify that chunk1_initial.csv.gz contains data records."""
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM read_files(
+            '{VOLUME_PATH}/chunk1_initial.csv.gz',
+            format => 'csv',
+            header => true
+        )
+    """)
+    row_count = cursor.fetchone()[0]
+    assert row_count > 0, "chunk1_initial.csv.gz is empty!"
+
+
+def test_chunk1_primary_key_not_null(cursor):
+    """Verify that the primary key column has no NULL values in chunk1 sample."""
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM (
+            SELECT `Transaction unique identifier`
+            FROM read_files(
+                '{VOLUME_PATH}/chunk1_initial.csv.gz',
+                format => 'csv',
+                header => true
+            )
+            LIMIT 1000
+        )
+        WHERE `Transaction unique identifier` IS NULL
+    """)
+    null_count = cursor.fetchone()[0]
+    assert null_count == 0, f"Found {null_count} nulls in 'Transaction unique identifier' in chunk1 sample"
