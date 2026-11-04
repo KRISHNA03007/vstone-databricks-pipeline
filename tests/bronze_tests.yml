@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    bronze_unit_tests:
+      name: bronze_unit_tests
+
+      tasks:
+        - task_key: run_all_tests
+
+          spark_python_task:
+            python_file: ../../tests/run_tests.py
+
+            parameters:
+              - "--source-path"
+              - "/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz"
+
+              - "--table-name"
+              - "vstone.bronze.transactions1"
+
+              - "--format"
+              - "csv"
+
+          # Configure your supported serverless
+          # environment here.
