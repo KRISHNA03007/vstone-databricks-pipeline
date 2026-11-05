@@ -36,7 +36,7 @@ variables:
     default: "/Volumes/vstone/landing/raw_data/chunks"
   chunk3_file_pattern:
     description: "Only pick up this file from the chunks folder, not chunk1/2/4"
-    default: "chunk3_json.gz"
+    default: "chunk3.json.gz"
   chunk3_table_name:
     default: "transactions3"
   chunk3_checkpoint_path:
@@ -45,7 +45,7 @@ variables:
 
   chunk4_source_path:
     description: "Chunk 4 - XML load"
-    default: "/Volumes/vstone/landing/raw_data/chunks/chunk4_xml.gz"
+    default: "/Volumes/vstone/landing/raw_data/chunks/chunk4.xml.gz"
   chunk4_table_name:
     default: "transactions4"
   chunk4_row_tag:
