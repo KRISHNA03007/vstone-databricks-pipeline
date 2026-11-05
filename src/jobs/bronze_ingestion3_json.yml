@@ -8,6 +8,7 @@ resources:
             notebook_path: ../notebooks/bronze/03_chunk3_json_autoloader.py
             base_parameters:
               source_path: "${var.chunk3_source_path}"
+              file_pattern: "${var.chunk3_file_pattern}"
               catalog: "${var.catalog}"
               schema: "${var.bronze_schema}"
               table_name: "${var.chunk3_table_name}"
