@@ -1,0 +1,77 @@
+name: CI-CD Databricks Asset Bundles
+
+on:
+  pull_request:
+    branches:
+      - 'dev'
+      - 'main'
+  push:
+    branches:
+      - 'dev'
+      - 'main'
+
+jobs:
+  # Runs on every PR and every push - checks the bundle's YAML is valid.
+  validate-bundle:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate Databricks Bundle
+        run: databricks bundle validate -t dev
+
+  # Runs only when a push lands on dev or main (i.e. after a merge).
+  # Deploys the bundle, then ingests + sanity-checks each chunk in order.
+  deploy-and-run:
+    needs: validate-bundle
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy Databricks Bundle
+        run: databricks bundle deploy -t dev
+
+      # Chunk 1 - CSV (initial) via COPY INTO
+      - name: Ingest Chunk 1 (CSV - COPY INTO)
+        run: databricks bundle run bronze_ingestion_chunk1 -t dev
+
+      - name: Sanity-Check Chunk 1
+        run: databricks bundle run bronze_sanity_chunk1 -t dev
+
+      # Chunk 2 - CSV (incremental) via Delta Live Tables
+      - name: Ingest Chunk 2 (CSV - Delta Live Tables)
+        run: databricks bundle run bronze_ingestion_chunk2_dlt -t dev
+
+      - name: Sanity-Check Chunk 2
+        run: databricks bundle run bronze_sanity_chunk2 -t dev
+
+      # Chunk 3 - JSON via Auto Loader
+      - name: Ingest Chunk 3 (JSON - Auto Loader)
+        run: databricks bundle run bronze_ingestion_chunk3 -t dev
+
+      - name: Sanity-Check Chunk 3
+        run: databricks bundle run bronze_sanity_chunk3 -t dev
+
+      # Chunk 4 - XML via plain PySpark read/write
+      - name: Ingest Chunk 4 (XML - PySpark)
+        run: databricks bundle run bronze_ingestion_chunk4 -t dev
+
+      - name: Sanity-Check Chunk 4
+        run: databricks bundle run bronze_sanity_chunk4 -t dev

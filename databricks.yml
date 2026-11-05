@@ -1,0 +1,58 @@
+bundle:
+  name: vstone-databricks-pipeline
+
+include:
+  - src/jobs/*.yml
+  - src/pipelines/*.yml
+  - tests/*.yml
+
+# Every path/table/schema name used by more than one job lives here once -
+# change a value in one place instead of editing several job files.
+variables:
+  catalog:
+    description: "Unity Catalog catalog name"
+    default: "vstone"
+  landing_schema:
+    description: "Landing schema (raw volume) name"
+    default: "landing"
+  bronze_schema:
+    description: "Bronze layer schema name"
+    default: "bronze"
+
+  chunk1_source_path:
+    description: "Chunk 1 - first-time CSV load"
+    default: "/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz"
+  chunk1_table_name:
+    default: "transactions1"
+
+  chunk2_source_path:
+    description: "Chunk 2 - incremental CSV load"
+    default: "/Volumes/vstone/landing/raw_data/chunks/chunk2_incremental.csv.gz"
+  chunk2_table_name:
+    default: "transactions2"
+
+  chunk3_source_path:
+    description: "Folder Auto Loader watches for chunk 3 (JSON) files"
+    default: "/Volumes/vstone/landing/raw_data/chunks"
+  chunk3_file_pattern:
+    description: "Only pick up this file from the chunks folder, not chunk1/2/4"
+    default: "chunk3.json.gz"
+  chunk3_table_name:
+    default: "transactions3"
+  chunk3_checkpoint_path:
+    description: "Auto Loader schema + checkpoint location for chunk 3"
+    default: "/Volumes/vstone/landing/raw_data/_checkpoints/chunk3_json"
+
+  chunk4_source_path:
+    description: "Chunk 4 - XML load"
+    default: "/Volumes/vstone/landing/raw_data/chunks/chunk4.xml.gz"
+  chunk4_table_name:
+    default: "transactions4"
+  chunk4_row_tag:
+    description: "XML element name that repeats once per record"
+    default: "record"
+
+targets:
+  dev:
+    mode: development
+    default: true

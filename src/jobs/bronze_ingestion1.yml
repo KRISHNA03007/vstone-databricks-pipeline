@@ -1,0 +1,13 @@
+resources:
+  jobs:
+    bronze_ingestion_chunk1:
+      name: "Day 2 - Bronze Layer Ingestion (Chunk 1 - CSV via COPY INTO)"
+      tasks:
+        - task_key: "copy_into_bronze_chunk1"
+          notebook_task:
+            notebook_path: ../notebooks/bronze/01_chunk1_initial.ipynb
+            base_parameters:
+              source_path: "${var.chunk1_source_path}"
+              catalog: "${var.catalog}"
+              schema: "${var.bronze_schema}"
+              table_name: "${var.chunk1_table_name}"

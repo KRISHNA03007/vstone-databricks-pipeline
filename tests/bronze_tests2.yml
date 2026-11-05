@@ -1,0 +1,26 @@
+resources:
+  jobs:
+    bronze_sanity_chunk2:
+      name: bronze_sanity_chunk2
+
+      tasks:
+        - task_key: run_all_tests
+          environment_key: default
+
+          spark_python_task:
+            python_file: run_tests.py
+
+            parameters:
+              - "--source-path"
+              - "${var.chunk2_source_path}"
+
+              - "--table-name"
+              - "${var.catalog}.${var.bronze_schema}.${var.chunk2_table_name}"
+
+              - "--format"
+              - "csv"
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "2"

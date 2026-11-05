@@ -1,0 +1,26 @@
+resources:
+  jobs:
+    bronze_sanity_chunk3:
+      name: bronze_sanity_chunk3
+
+      tasks:
+        - task_key: run_all_tests
+          environment_key: default
+
+          spark_python_task:
+            python_file: run_tests.py
+
+            parameters:
+              - "--source-path"
+              - "${var.chunk3_source_path}"
+
+              - "--table-name"
+              - "${var.catalog}.${var.bronze_schema}.${var.chunk3_table_name}"
+
+              - "--format"
+              - "json"
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "2"
