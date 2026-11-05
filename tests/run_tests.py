@@ -17,11 +17,13 @@ os.environ["FILE_FORMAT"] = args.format
 if args.row_tag:
     os.environ["ROW_TAG"] = args.row_tag
 
-# Discover all test files
+# Discover all test files in this same folder, regardless of the current
+# working directory the job happens to start from.
 loader = unittest.TestLoader()
+start_dir = os.path.dirname(os.path.abspath(__file__))
 
 suite = loader.discover(
-    start_dir="tests",
+    start_dir=start_dir,
     pattern="test_*.py"
 )
 
