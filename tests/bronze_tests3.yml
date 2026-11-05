@@ -5,6 +5,7 @@ resources:
 
       tasks:
         - task_key: run_all_tests
+          environment_key: default
 
           spark_python_task:
             python_file: run_tests.py
@@ -18,3 +19,8 @@ resources:
 
               - "--format"
               - "json"
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"

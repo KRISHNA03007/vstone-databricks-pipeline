@@ -5,6 +5,7 @@ resources:
 
       tasks:
         - task_key: run_all_tests
+          environment_key: default
 
           spark_python_task:
             python_file: run_tests.py
@@ -21,3 +22,8 @@ resources:
 
               - "--row-tag"
               - "${var.chunk4_row_tag}"
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
