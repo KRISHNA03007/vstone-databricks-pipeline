@@ -1,0 +1,55 @@
+# Databricks notebook source
+from pyspark.sql.functions import current_timestamp, lit
+
+
+def get_parameters():
+    dbutils.widgets.text("source_path", "")
+    dbutils.widgets.text("catalog", "vstone")
+    dbutils.widgets.text("schema", "bronze")
+    dbutils.widgets.text("table_name", "transactions4")
+    dbutils.widgets.text("row_tag", "record")
+    return {
+        "source_path": dbutils.widgets.get("source_path"),
+        "catalog": dbutils.widgets.get("catalog"),
+        "schema": dbutils.widgets.get("schema"),
+        "table_name": dbutils.widgets.get("table_name"),
+        "row_tag": dbutils.widgets.get("row_tag"),
+    }
+
+
+def ensure_schema_exists(catalog, schema):
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}")
+
+
+def ingest_xml(target_table, source_path, row_tag):
+    # Plain PySpark read/write, as the spec asks for chunk4 (no COPY INTO,
+    # no Auto Loader, no DLT). Chunk4 is a one-shot batch file, so
+    # "overwrite" makes re-running this notebook idempotent.
+    df = (
+        spark.read.format("xml")
+        .option("rowTag", row_tag)
+        .load(source_path)
+    )
+    df = df.withColumn("load_dt", current_timestamp()).withColumn("source", lit(source_path))
+
+    (
+        df.write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", "true")
+        .option("mergeSchema", "true")
+        .saveAsTable(target_table)
+    )
+
+    spark.sql(
+        f"COMMENT ON TABLE {target_table} IS "
+        "'Bronze transactions table loaded from chunk4 XML via PySpark read/write'"
+    )
+
+
+# COMMAND ----------
+if __name__ == "__main__":
+    params = get_parameters()
+    target_table = f"{params['catalog']}.{params['schema']}.{params['table_name']}"
+
+    ensure_schema_exists(params["catalog"], params["schema"])
+    ingest_xml(target_table, params["source_path"], params["row_tag"])

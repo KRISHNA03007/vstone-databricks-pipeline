@@ -1,0 +1,13 @@
+resources:
+  pipelines:
+    bronze_ingestion_chunk2_dlt:
+      name: "bronze_ingestion_chunk2_dlt"
+      catalog: ${var.catalog}
+      target: ${var.bronze_schema}
+      serverless: true
+      libraries:
+        - notebook:
+            path: ../notebooks/bronze/02_chunk2_incremental_dlt.py
+      configuration:
+        source_path: ${var.chunk2_source_path}
+        table_name: ${var.chunk2_table_name}

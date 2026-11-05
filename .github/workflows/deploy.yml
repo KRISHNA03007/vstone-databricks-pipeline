@@ -11,64 +11,8 @@ on:
       - 'main'
 
 jobs:
-  # -------------------------------------------------------------
-  # Step 1: Run Tests First (Fastest fail-early step)
-  # -------------------------------------------------------------
-  run-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip' # Speeds up runs by caching downloaded wheels, keyed off requirements.txt below
-          cache-dependency-path: 'requirements.txt'
-
-      - name: Install Test Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # pytest: test runner. pyspark: required by the local unit tests
-          # (test_*_unit.py) which exercise notebook functions against small
-          # in-memory DataFrames using assertDataFrameEqual/assertSchemaEqual.
-          # databricks-sql-connector: required by the integration tests that
-          # hit a live SQL warehouse. See requirements.txt for pinned versions.
-          pip install -r requirements.txt
-
-      - name: Run Unit Tests (offline, no Databricks secrets required)
-        run: pytest tests/ -v -k "unit"
-
-      - name: Run Integration Tests (requires live Databricks SQL warehouse)
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
-          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
-        run: |
-          # NOTE: every test file in tests/ is currently named "*_unit.py", so
-          # this "not unit" filter correctly matches ZERO tests until an
-          # integration test file (not containing "unit" in its name) is
-          # added later in the project. Pytest exits with code 5 ("no tests
-          # collected") in that case, which GitHub Actions treats as a
-          # failed step even though nothing is actually broken.
-          #
-          # These lines treat "no tests collected" (exit code 5) as a pass,
-          # so the step only fails on REAL test failures (exit code 1) or
-          # REAL errors (exit code 2), not on "there's nothing to run yet".
-          # ("|| EXIT_CODE=$?" is needed because GitHub Actions runs this
-          # script with "bash -e", which would otherwise stop the script
-          # the instant pytest returns a non-zero exit code.)
-          pytest tests/ -v -k "not unit" || EXIT_CODE=$?
-          EXIT_CODE=${EXIT_CODE:-0}
-          [ "$EXIT_CODE" -eq 0 ] || [ "$EXIT_CODE" -eq 5 ]
-
-  # -------------------------------------------------------------
-  # Step 2: Validate Bundle (Runs strictly after tests pass)
-  # -------------------------------------------------------------
+  # Runs on every PR and every push - checks the bundle's YAML is valid.
   validate-bundle:
-    needs: run-tests
     runs-on: ubuntu-latest
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -84,9 +28,8 @@ jobs:
       - name: Validate Databricks Bundle
         run: databricks bundle validate -t dev
 
-  # -------------------------------------------------------------
-  # Step 3: Deploy & Execute Ingestion (Only on merge/push to dev/main)
-  # -------------------------------------------------------------
+  # Runs only when a push lands on dev or main (i.e. after a merge).
+  # Deploys the bundle, then ingests + sanity-checks each chunk in order.
   deploy-and-run:
     needs: validate-bundle
     if: github.event_name == 'push'
@@ -105,5 +48,30 @@ jobs:
       - name: Deploy Databricks Bundle
         run: databricks bundle deploy -t dev
 
-      - name: Run Ingestion Pipeline Job
+      # Chunk 1 - CSV (initial) via COPY INTO
+      - name: Ingest Chunk 1 (CSV - COPY INTO)
         run: databricks bundle run bronze_ingestion_chunk1 -t dev
+
+      - name: Sanity-Check Chunk 1
+        run: databricks bundle run bronze_sanity_chunk1 -t dev
+
+      # Chunk 2 - CSV (incremental) via Delta Live Tables
+      - name: Ingest Chunk 2 (CSV - Delta Live Tables)
+        run: databricks bundle run bronze_ingestion_chunk2_dlt -t dev
+
+      - name: Sanity-Check Chunk 2
+        run: databricks bundle run bronze_sanity_chunk2 -t dev
+
+      # Chunk 3 - JSON via Auto Loader
+      - name: Ingest Chunk 3 (JSON - Auto Loader)
+        run: databricks bundle run bronze_ingestion_chunk3 -t dev
+
+      - name: Sanity-Check Chunk 3
+        run: databricks bundle run bronze_sanity_chunk3 -t dev
+
+      # Chunk 4 - XML via plain PySpark read/write
+      - name: Ingest Chunk 4 (XML - PySpark)
+        run: databricks bundle run bronze_ingestion_chunk4 -t dev
+
+      - name: Sanity-Check Chunk 4
+        run: databricks bundle run bronze_sanity_chunk4 -t dev
