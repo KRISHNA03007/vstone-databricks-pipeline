@@ -13,6 +13,13 @@ table_name = spark.conf.get("table_name")
 @dlt.table(
     name=table_name,
     comment="Bronze transactions table loaded via Delta Live Tables from chunk2 incremental CSV",
+    # Source columns contain spaces (e.g. "Transaction unique identifier"),
+    # same as chunk1 - column mapping mode "name" allows that.
+    table_properties={
+        "delta.columnMapping.mode": "name",
+        "delta.minReaderVersion": "2",
+        "delta.minWriterVersion": "5",
+    },
 )
 def bronze_chunk2():
     df = (
