@@ -46,7 +46,23 @@ jobs:
           DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
           DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
           DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
-        run: pytest tests/ -v -k "not unit"
+        run: |
+          # NOTE: every test file in tests/ is currently named "*_unit.py", so
+          # this "not unit" filter correctly matches ZERO tests until an
+          # integration test file (not containing "unit" in its name) is
+          # added later in the project. Pytest exits with code 5 ("no tests
+          # collected") in that case, which GitHub Actions treats as a
+          # failed step even though nothing is actually broken.
+          #
+          # These lines treat "no tests collected" (exit code 5) as a pass,
+          # so the step only fails on REAL test failures (exit code 1) or
+          # REAL errors (exit code 2), not on "there's nothing to run yet".
+          # ("|| EXIT_CODE=$?" is needed because GitHub Actions runs this
+          # script with "bash -e", which would otherwise stop the script
+          # the instant pytest returns a non-zero exit code.)
+          pytest tests/ -v -k "not unit" || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+          [ "$EXIT_CODE" -eq 0 ] || [ "$EXIT_CODE" -eq 5 ]
 
   # -------------------------------------------------------------
   # Step 2: Validate Bundle (Runs strictly after tests pass)

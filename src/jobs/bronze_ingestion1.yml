@@ -5,8 +5,12 @@ resources:
       tasks:
         - task_key: "copy_into_bronze_chunk1"
           notebook_task:
-            # Your exact absolute path
-            notebook_path: /Workspace/Users/krishnaarnuri8@gmail.com/vstone-databricks-pipeline/src/notebooks/bronze/01_chunk1_initial.ipynb
+            # Path is RELATIVE to this file's own location (src/jobs/), not a
+            # hardcoded absolute workspace path. DABs automatically syncs the
+            # notebook and rewrites this into the correct deployed path for
+            # whichever user/service-principal runs "databricks bundle deploy" -
+            # so this keeps working no matter whose Databricks account deploys it.
+            notebook_path: ../notebooks/bronze/01_chunk1_initial.ipynb
             base_parameters:
               source_path: "/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz"
               catalog: "vstone"
