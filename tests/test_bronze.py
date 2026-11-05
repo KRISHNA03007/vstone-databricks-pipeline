@@ -15,12 +15,16 @@ class TestBronzeLayer(unittest.TestCase):
         cls.source_path = os.environ["SOURCE_PATH"]
         cls.table_name = os.environ["TABLE_NAME"]
         cls.file_format = os.environ.get("FILE_FORMAT", "csv")
+        cls.row_tag = os.environ.get("ROW_TAG")
 
         # Read source data from Unity Catalog Volume
         reader = cls.spark.read
 
         if cls.file_format == "csv":
             reader = reader.option("header", "true").option("inferSchema", "true")
+
+        if cls.file_format == "xml" and cls.row_tag:
+            reader = reader.option("rowTag", cls.row_tag)
 
         cls.source_df = reader.format(cls.file_format).load(cls.source_path)
 

@@ -1,7 +1,7 @@
 resources:
   jobs:
-    bronze_unit_tests:
-      name: bronze_unit_tests
+    bronze_sanity_chunk1:
+      name: bronze_sanity_chunk1
 
       tasks:
         - task_key: run_all_tests
@@ -11,13 +11,10 @@ resources:
 
             parameters:
               - "--source-path"
-              - "/Volumes/vstone/landing/raw_data/chunks/chunk1_initial.csv.gz"
+              - "${var.chunk1_source_path}"
 
               - "--table-name"
-              - "vstone.bronze.transactions1"
+              - "${var.catalog}.${var.bronze_schema}.${var.chunk1_table_name}"
 
               - "--format"
               - "csv"
-
-          # Configure your supported serverless
-          # environment here.

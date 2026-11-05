@@ -1,0 +1,14 @@
+resources:
+  jobs:
+    bronze_ingestion_chunk3:
+      name: "Day 3 - Bronze Layer Ingestion (Chunk 3 - JSON via Auto Loader)"
+      tasks:
+        - task_key: "autoload_bronze_chunk3"
+          notebook_task:
+            notebook_path: ../notebooks/bronze/03_chunk3_json_autoloader.py
+            base_parameters:
+              source_path: "${var.chunk3_source_path}"
+              catalog: "${var.catalog}"
+              schema: "${var.bronze_schema}"
+              table_name: "${var.chunk3_table_name}"
+              checkpoint_path: "${var.chunk3_checkpoint_path}"

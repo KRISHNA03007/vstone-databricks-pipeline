@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    bronze_sanity_chunk4:
+      name: bronze_sanity_chunk4
+
+      tasks:
+        - task_key: run_all_tests
+
+          spark_python_task:
+            python_file: ../../tests/run_tests.py
+
+            parameters:
+              - "--source-path"
+              - "${var.chunk4_source_path}"
+
+              - "--table-name"
+              - "${var.catalog}.${var.bronze_schema}.${var.chunk4_table_name}"
+
+              - "--format"
+              - "xml"
+
+              - "--row-tag"
+              - "${var.chunk4_row_tag}"
