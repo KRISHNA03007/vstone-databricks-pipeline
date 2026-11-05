@@ -37,6 +37,9 @@ def ingest_json_autoloader(target_table, source_path, checkpoint_path):
         df.writeStream.format("delta")
         .option("checkpointLocation", checkpoint_path)
         .option("mergeSchema", "true")
+        # Source columns may contain spaces (e.g. "Transaction unique
+        # identifier"), same as chunk1/chunk2 - column mapping allows that.
+        .option("delta.columnMapping.mode", "name")
         .trigger(availableNow=True)
         .toTable(target_table)
     )
