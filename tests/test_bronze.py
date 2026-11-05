@@ -1,7 +1,16 @@
 import unittest
 import os
+import re
 
 from pyspark.sql import SparkSession
+
+
+def clean_column_name(name):
+    # Same normalization the Bronze notebooks use when a column name has to
+    # change (e.g. chunk2's Materialized View can't keep spaces). Comparing
+    # cleaned names on both sides lets one test work for every chunk,
+    # whether or not its table kept the original source column names.
+    return re.sub(r"[^0-9a-zA-Z]+", "_", name).strip("_")
 
 
 class TestBronzeLayer(unittest.TestCase):
@@ -39,13 +48,13 @@ class TestBronzeLayer(unittest.TestCase):
             f"Bronze table does not exist: {self.table_name}"
         )
 
-    # 2. Check whether columns match
+    # 2. Check whether columns match (by cleaned name, order preserved)
     def test_columns_match(self):
 
-        source_columns = self.source_df.columns
+        source_columns = [clean_column_name(c) for c in self.source_df.columns]
 
         bronze_columns = [
-            col for col in self.bronze_df.columns
+            clean_column_name(col) for col in self.bronze_df.columns
             if col not in ["load_dt", "source"]
         ]
 
@@ -59,8 +68,14 @@ class TestBronzeLayer(unittest.TestCase):
     def test_records_match(self):
 
         source_columns = self.source_df.columns
+        bronze_by_clean_name = {
+            clean_column_name(c): c for c in self.bronze_df.columns
+        }
+        bronze_select = [bronze_by_clean_name[clean_column_name(c)] for c in source_columns]
 
-        bronze_data = self.bronze_df.select(*source_columns)
+        # Rename Bronze's selected columns back to the source's names so
+        # exceptAll compares by position, not by (possibly different) name.
+        bronze_data = self.bronze_df.select(*bronze_select).toDF(*source_columns)
 
         source_count = self.source_df.count()
         bronze_count = bronze_data.count()
