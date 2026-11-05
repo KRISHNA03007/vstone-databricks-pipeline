@@ -43,7 +43,11 @@ def ingest_json_autoloader(target_table, source_path, file_pattern, checkpoint_p
         .option("mergeSchema", "true")
         # Source columns may contain spaces (e.g. "Transaction unique
         # identifier"), same as chunk1/chunk2 - column mapping allows that.
+        # All three options below are required together for column mapping
+        # to actually apply when a brand-new table is created.
         .option("delta.columnMapping.mode", "name")
+        .option("delta.minReaderVersion", "2")
+        .option("delta.minWriterVersion", "5")
         .trigger(availableNow=True)
         .toTable(target_table)
     )

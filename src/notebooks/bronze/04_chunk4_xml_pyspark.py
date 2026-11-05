@@ -38,8 +38,11 @@ def ingest_xml(target_table, source_path, row_tag):
         .option("overwriteSchema", "true")
         .option("mergeSchema", "true")
         # Source columns may contain spaces (same source dataset as
-        # chunk1/chunk2/chunk3) - column mapping allows that.
+        # chunk1/chunk2/chunk3) - all three options below are required
+        # together for column mapping to apply on a brand-new table.
         .option("delta.columnMapping.mode", "name")
+        .option("delta.minReaderVersion", "2")
+        .option("delta.minWriterVersion", "5")
         .saveAsTable(target_table)
     )
 
