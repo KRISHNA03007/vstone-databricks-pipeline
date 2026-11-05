@@ -3,7 +3,7 @@ bundle:
 
 include:
   - src/jobs/*.yml
-  - src/jobs/tests/*.yml
+  - tests/*.yml
 
 targets:
   dev:
