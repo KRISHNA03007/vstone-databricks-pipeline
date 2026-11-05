@@ -32,8 +32,11 @@ variables:
     default: "transactions2"
 
   chunk3_source_path:
-    description: "Chunk 3 - JSON load"
-    default: "/Volumes/vstone/landing/raw_data/chunks/chunk3_json.gz"
+    description: "Folder Auto Loader watches for chunk 3 (JSON) files"
+    default: "/Volumes/vstone/landing/raw_data/chunks"
+  chunk3_file_pattern:
+    description: "Only pick up this file from the chunks folder, not chunk1/2/4"
+    default: "chunk3_json.gz"
   chunk3_table_name:
     default: "transactions3"
   chunk3_checkpoint_path:
