@@ -7,7 +7,7 @@ resources:
         - task_key: run_all_tests
 
           spark_python_task:
-            python_file: ../../tests/run_tests.py
+            python_file: run_tests.py
 
             parameters:
               - "--source-path"
